@@ -21,6 +21,59 @@ export default function BookingDetailPage({ params: paramsPromise }) {
   const [updateBooking, { loading: updating }] = useMutation(UPDATE_BOOKING);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // ✅ Simple isValidDate function như Voucher approach
+  const isValidDate = (dateString) => {
+    if (!dateString || 
+        dateString === null || 
+        dateString === undefined || 
+        dateString === '' ||
+        dateString === 'Invalid Date') {
+      return false;
+    }
+    try {
+      const date = new Date(dateString);
+      return !isNaN(date.getTime()) && date.getTime() > 0;
+    } catch {
+      return false;
+    }
+  };
+
+  // ✅ Simple date formatting như Voucher
+  const formatDate = (dateString) => {
+    return isValidDate(dateString) 
+      ? new Date(dateString).toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        })
+      : 'No date';
+  };
+
+  // ✅ Simple relative time với safe checking
+  const getRelativeTime = (dateString) => {
+    if (!isValidDate(dateString)) return '';
+    
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+      
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+      if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+      if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+      return '';
+    } catch (error) {
+      return '';
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
@@ -55,6 +108,18 @@ export default function BookingDetailPage({ params: paramsPromise }) {
               Try Again
             </button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Add safety check for data
+  if (!data || !data.bookings) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-700 font-medium">Loading booking data...</p>
         </div>
       </div>
     );
@@ -97,6 +162,7 @@ export default function BookingDetailPage({ params: paramsPromise }) {
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
       console.error('Update failed', err);
+      alert('Failed to update booking. Please try again.');
     }
   };
 
@@ -250,7 +316,7 @@ export default function BookingDetailPage({ params: paramsPromise }) {
                 <div className="space-y-3">
                   <label className="block text-sm font-bold text-slate-700">Booking Status</label>
                   <select
-                    value={booking.status}
+                    value={booking.status || 'pending'}
                     onChange={(e) => handleUpdate('status', e.target.value)}
                     disabled={updating}
                     className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white text-slate-800 font-medium"
@@ -268,34 +334,31 @@ export default function BookingDetailPage({ params: paramsPromise }) {
                       booking.status === 'confirmed' ? 'text-green-700' :
                       booking.status === 'pending' ? 'text-yellow-700' : 'text-red-700'
                     }`}>
-                      {booking.status}
+                      {booking.status || 'pending'}
                     </span>
                   </div>
                 </div>
 
-                {/* Payment Status */}
+                {/* ✅ Fixed Payment Status - match với backend values */}
                 <div className="space-y-3">
                   <label className="block text-sm font-bold text-slate-700">Payment Status</label>
                   <select
-                    value={booking.paymentStatus}
+                    value={booking.paymentStatus || 'unpaid'}
                     onChange={(e) => handleUpdate('paymentStatus', e.target.value)}
                     disabled={updating}
                     className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white text-slate-800 font-medium"
                   >
-                    <option value="pending">Pending</option>
-                    <option value="completed">Completed</option>
-                    <option value="failed">Failed</option>
+                    <option value="unpaid">Unpaid</option>
+                    <option value="paid">Paid</option>
                   </select>
                   <div className="flex items-center space-x-2">
                     <div className={`w-3 h-3 rounded-full ${
-                      booking.paymentStatus === 'completed' ? 'bg-blue-500' :
-                      booking.paymentStatus === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
+                      booking.paymentStatus === 'paid' ? 'bg-blue-500' : 'bg-yellow-500'
                     }`}></div>
                     <span className={`text-sm font-semibold capitalize ${
-                      booking.paymentStatus === 'completed' ? 'text-blue-700' :
-                      booking.paymentStatus === 'pending' ? 'text-yellow-700' : 'text-red-700'
+                      booking.paymentStatus === 'paid' ? 'text-blue-700' : 'text-yellow-700'
                     }`}>
-                      {booking.paymentStatus}
+                      {booking.paymentStatus || 'unpaid'}
                     </span>
                   </div>
                 </div>
@@ -335,7 +398,7 @@ export default function BookingDetailPage({ params: paramsPromise }) {
               </div>
             </div>
 
-            {/* Timestamps */}
+            {/* ✅ Fixed Timestamps Section với simple approach */}
             <div className="bg-white rounded-3xl shadow-lg border border-slate-200 overflow-hidden">
               <div className="bg-gradient-to-r from-slate-600 to-slate-700 px-6 py-4">
                 <h2 className="text-xl font-bold text-white flex items-center space-x-2">
@@ -349,24 +412,30 @@ export default function BookingDetailPage({ params: paramsPromise }) {
                 <div>
                   <p className="text-slate-600 font-medium mb-1">Created</p>
                   <p className="text-slate-800 font-semibold">
-                    {booking.createdAt && !isNaN(Date.parse(booking.createdAt))
-                      ? new Date(booking.createdAt).toLocaleString()
-                      : 'N/A'}
+                    {formatDate(booking.createdAt)}
                   </p>
+                  {getRelativeTime(booking.createdAt) && (
+                    <p className="text-slate-500 text-xs">
+                      {getRelativeTime(booking.createdAt)}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-slate-600 font-medium mb-1">Last Updated</p>
                   <p className="text-slate-800 font-semibold">
-                    {booking.updatedAt && !isNaN(Date.parse(booking.updatedAt))
-                      ? new Date(booking.updatedAt).toLocaleString()
-                      : 'N/A'}
+                    {formatDate(booking.updatedAt)}
                   </p>
+                  {getRelativeTime(booking.updatedAt) && (
+                    <p className="text-slate-500 text-xs">
+                      {getRelativeTime(booking.updatedAt)}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Review Action */}
-            {booking.paymentStatus === 'completed' && (
+            {/* ✅ Fixed Review Action - match với backend payment status */}
+            {booking.paymentStatus === 'paid' && (
               <div className="bg-white rounded-3xl shadow-lg border border-slate-200 overflow-hidden">
                 <div className="bg-gradient-to-r from-yellow-500 to-orange-500 px-6 py-4">
                   <h2 className="text-xl font-bold text-white flex items-center space-x-2">

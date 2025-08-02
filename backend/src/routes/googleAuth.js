@@ -26,7 +26,7 @@ router.get(
     );
 
     // 🌐 Redirect về frontend kèm token → chuyển sang /login
-    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://10.0.2.2:3000';
     res.redirect(`${FRONTEND_URL}/login?token=${token}`);
   }
 );

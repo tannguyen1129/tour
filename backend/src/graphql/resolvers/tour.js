@@ -3,27 +3,67 @@ import Tour from '../../models/Tour.js';
 export default {
   Query: {
     tours: async () => {
-      return await Tour.find({ isDeleted: false }).populate('category');
+      // ✅ Trả về trực tiếp như Voucher - không format dates
+      return await Tour.find({ isDeleted: false })
+        .populate('category')
+        .sort({ createdAt: -1 }); // ✅ Thêm sort như Voucher để consistent ordering
     },
+    
     tour: async (_, { id }) => {
-      return await Tour.findById(id).populate('category');
+      const tour = await Tour.findById(id).populate('category');
+      if (!tour || tour.isDeleted) {
+        throw new Error('Tour not found');
+      }
+      // ✅ Trả về trực tiếp - không format dates
+      return tour;
     }
   },
+
   Mutation: {
     createTour: async (_, { input }) => {
-      const tour = await Tour.create(input);
-      return await Tour.findById(tour._id).populate('category'); // Trả về tour đã populate
+      try {
+        const tour = await Tour.create(input);
+        // ✅ Trả về trực tiếp với populate - không format dates
+        return await Tour.findById(tour._id).populate('category');
+      } catch (error) {
+        throw new Error(`Failed to create tour: ${error.message}`);
+      }
     },
+
     updateTour: async (_, { id, input }) => {
-      const tour = await Tour.findByIdAndUpdate(id, input, { new: true }).populate('category');
-      return tour;
+      try {
+        const existingTour = await Tour.findById(id);
+        if (!existingTour || existingTour.isDeleted) {
+          throw new Error('Tour not found');
+        }
+
+        // ✅ Trả về trực tiếp với populate - không format dates
+        const tour = await Tour.findByIdAndUpdate(
+          id, 
+          input, 
+          { new: true }
+        ).populate('category');
+        
+        return tour;
+      } catch (error) {
+        throw new Error(`Failed to update tour: ${error.message}`);
+      }
     },
+
     deleteTour: async (_, { id }) => {
-      const tour = await Tour.findById(id);
-      if (!tour) throw new Error('Tour not found');
-      tour.isDeleted = true;
-      await tour.save();
-      return true;
+      try {
+        const tour = await Tour.findById(id);
+        if (!tour || tour.isDeleted) {
+          throw new Error('Tour not found');
+        }
+        
+        // ✅ Soft delete như existing logic
+        tour.isDeleted = true;
+        await tour.save();
+        return true;
+      } catch (error) {
+        throw new Error(`Failed to delete tour: ${error.message}`);
+      }
     }
   }
 };

@@ -12,6 +12,7 @@ import vnpayRoutes from './routes/vnpay.js';
 import './config/google.js'; // cấu hình strategy
 import googleAuthRoutes from './routes/googleAuth.js';
 import authRoutes from './routes/auth.js';
+import stripeWebhook from './routes/stripe.js';
 
 dotenv.config();
 const app = express();
@@ -33,6 +34,8 @@ app.use('/api/payment', vnpayRoutes);
 
 app.use('/api/auth', googleAuthRoutes);
 app.use('/api/auth', authRoutes);
+
+app.use('/api/stripe', stripeWebhook);
 
 // 5️⃣ Tạo ApolloServer
 const server = new ApolloServer({

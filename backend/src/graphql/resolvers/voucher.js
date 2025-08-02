@@ -2,7 +2,9 @@ import Voucher from '../../models/Voucher.js';
 
 const voucherResolvers = {
   Query: {
-    vouchers: async () => await Voucher.find(),
+   vouchers: async () => {
+  return await Voucher.find().sort({ createdAt: -1 }); 
+},
     voucher: async (_, { id }) => await Voucher.findById(id),
   },
 

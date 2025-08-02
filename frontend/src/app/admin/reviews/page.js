@@ -17,7 +17,7 @@ export default function AdminReviewsPage() {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   
   const { loading, error, data, refetch, startPolling, stopPolling } = useQuery(GET_REVIEWS, {
-    pollInterval: isPollingEnabled ? 30000 : 0, // Poll every 30 seconds
+    pollInterval: isPollingEnabled ? 30000 : 0,
     notifyOnNetworkStatusChange: true,
     fetchPolicy: 'cache-and-network'
   });
@@ -30,6 +30,52 @@ export default function AdminReviewsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [ratingFilter, setRatingFilter] = useState('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // ✅ Simple date validation function theo approach đã fix
+  const isValidDate = (dateString) => {
+    if (!dateString || 
+        dateString === null || 
+        dateString === undefined || 
+        dateString === '' ||
+        dateString === 'Invalid Date') {
+      return false;
+    }
+    try {
+      const date = new Date(dateString);
+      return !isNaN(date.getTime()) && date.getTime() > 0;
+    } catch {
+      return false;
+    }
+  };
+
+  // ✅ Simple date formatting function
+  const formatDate = (dateString) => {
+    return isValidDate(dateString) 
+      ? new Date(dateString).toLocaleDateString('en-GB')
+      : 'No date';
+  };
+
+  // ✅ Simple relative time function
+  const getRelativeTime = (dateString) => {
+    if (!isValidDate(dateString)) return '';
+    
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+      
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+      if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+      if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+      return '';
+    } catch (error) {
+      return '';
+    }
+  };
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
@@ -104,6 +150,20 @@ export default function AdminReviewsPage() {
     );
   }
 
+  // ✅ Add safety check for data - match với backend structure
+  if (!data || !data.reviews) {
+    return (
+      <AdminLayout>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-slate-700 font-medium">Loading review data...</p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   const handleReply = async (id) => {
     const reply = replyText[id]?.trim();
     if (!reply) return;
@@ -115,8 +175,8 @@ export default function AdminReviewsPage() {
       setReplyText((prev) => ({ ...prev, [id]: '' }));
       setLastRefresh(new Date());
     } catch (err) {
-      console.error(err);
-      alert('Failed to submit reply');
+      console.error('Reply failed:', err);
+      alert('Failed to submit reply. Please try again.');
     }
   };
 
@@ -127,7 +187,8 @@ export default function AdminReviewsPage() {
       await refetch();
       setLastRefresh(new Date());
     } catch (err) {
-      console.error(err);
+      console.error('Status update failed:', err);
+      alert('Failed to update review status. Please try again.');
     }
   };
 
@@ -138,7 +199,8 @@ export default function AdminReviewsPage() {
         await refetch();
         setLastRefresh(new Date());
       } catch (err) {
-        console.error(err);
+        console.error('Delete failed:', err);
+        alert('Failed to delete review. Please try again.');
       }
     }
   };
@@ -146,21 +208,33 @@ export default function AdminReviewsPage() {
   const buildUrl = (path) =>
     path?.startsWith('http') ? path : `${process.env.NEXT_PUBLIC_BACKEND_URL}${path}`;
 
-  // Filter reviews
-  const filteredReviews = data?.reviews?.filter((review) => {
+  // ✅ Enhanced filter reviews với safe property access
+  const filteredReviews = data.reviews.filter((review) => {
+    // ✅ Safe text search với fallback values
     const text = `${review.user?.email || ''} ${review.tour?.title || ''} ${review.comment || ''}`.toLowerCase();
     const matchesSearch = text.includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || review.status === statusFilter;
-    const matchesRating = ratingFilter === 'all' || review.rating.toString() === ratingFilter;
-    return matchesSearch && matchesStatus && matchesRating;
-  }) || [];
+    
+    // ✅ Safe status matching với fallback
+    const reviewStatus = review.status || 'visible'; // Default to visible nếu null
+    const matchesStatus = statusFilter === 'all' || reviewStatus === statusFilter;
+    
+    // ✅ Safe rating matching với fallback
+    const reviewRating = review.rating || 0;
+    const matchesRating = ratingFilter === 'all' || reviewRating.toString() === ratingFilter;
+    
+    // ✅ Filter out deleted reviews - match với backend logic
+    const notDeleted = !review.isDeleted;
+    
+    return matchesSearch && matchesStatus && matchesRating && notDeleted;
+  });
 
-  // Statistics
-  const totalReviews = data?.reviews?.length || 0;
-  const visibleReviews = data?.reviews?.filter(r => r.status === 'visible').length || 0;
-  const hiddenReviews = data?.reviews?.filter(r => r.status === 'hidden').length || 0;
+  // ✅ Safe statistics calculation với backend data structure
+  const activeReviews = data.reviews.filter(r => !r.isDeleted);
+  const totalReviews = activeReviews.length;
+  const visibleReviews = activeReviews.filter(r => (r.status || 'visible') === 'visible').length;
+  const hiddenReviews = activeReviews.filter(r => (r.status || 'visible') === 'hidden').length;
   const averageRating = totalReviews > 0 
-    ? (data.reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(1)
+    ? (activeReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / totalReviews).toFixed(1)
     : 0;
 
   return (
@@ -184,7 +258,6 @@ export default function AdminReviewsPage() {
 
               {/* Refresh Controls */}
               <div className="flex items-center space-x-3">
-                {/* Last Refresh Time */}
                 <div className="text-right">
                   <p className="text-xs text-slate-500">Last updated</p>
                   <p className="text-sm font-medium text-slate-700">
@@ -192,7 +265,6 @@ export default function AdminReviewsPage() {
                   </p>
                 </div>
 
-                {/* Auto Refresh Toggle */}
                 <button
                   onClick={togglePolling}
                   className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
@@ -205,7 +277,6 @@ export default function AdminReviewsPage() {
                   <span className="text-sm">Auto Refresh</span>
                 </button>
 
-                {/* Manual Refresh Button */}
                 <button
                   onClick={handleRefresh}
                   disabled={isRefreshing}
@@ -382,6 +453,10 @@ export default function AdminReviewsPage() {
                         <div>
                           <p className="font-semibold text-slate-800">{review.user?.email || 'Unknown User'}</p>
                           <p className="text-sm text-slate-600">reviewing <span className="font-medium text-blue-600">{review.tour?.title || 'Unknown Tour'}</span></p>
+                          {/* ✅ Add created date như backend đã có */}
+                          <p className="text-xs text-slate-500">
+                            {formatDate(review.createdAt)} {getRelativeTime(review.createdAt) && `• ${getRelativeTime(review.createdAt)}`}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-3">
@@ -389,23 +464,23 @@ export default function AdminReviewsPage() {
                           {[...Array(5)].map((_, i) => (
                             <svg
                               key={i}
-                              className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400' : 'text-slate-300'}`}
+                              className={`w-4 h-4 ${i < (review.rating || 0) ? 'text-yellow-400' : 'text-slate-300'}`}
                               fill="currentColor"
                               viewBox="0 0 24 24"
                             >
                               <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                             </svg>
                           ))}
-                          <span className="ml-2 font-semibold text-slate-700">{review.rating}/5</span>
+                          <span className="ml-2 font-semibold text-slate-700">{review.rating || 0}/5</span>
                         </div>
                         <span
                           className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                            review.status === 'visible'
+                            (review.status || 'visible') === 'visible'
                               ? 'bg-green-100 text-green-700 border border-green-200'
                               : 'bg-yellow-100 text-yellow-700 border border-yellow-200'
                           }`}
                         >
-                          {review.status}
+                          {review.status || 'visible'}
                         </span>
                       </div>
                     </div>
@@ -415,7 +490,9 @@ export default function AdminReviewsPage() {
                   <div className="p-6">
                     <div className="mb-4">
                       <h4 className="font-semibold text-slate-800 mb-2">Review Comment</h4>
-                      <p className="text-slate-700 leading-relaxed bg-slate-50 rounded-xl p-4">"{review.comment}"</p>
+                      <p className="text-slate-700 leading-relaxed bg-slate-50 rounded-xl p-4">
+                        "{review.comment || 'No comment provided'}"
+                      </p>
                     </div>
 
                     {/* Review Images */}
@@ -438,7 +515,7 @@ export default function AdminReviewsPage() {
                       </div>
                     )}
 
-                    {/* Admin Reply - Fixed visibility */}
+                    {/* Admin Reply */}
                     <div className="mb-4">
                       <h4 className="font-semibold text-slate-800 mb-2">Admin Reply</h4>
                       {review.reply && (
@@ -484,17 +561,17 @@ export default function AdminReviewsPage() {
                     {/* Action Buttons */}
                     <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-200">
                       <button
-                        onClick={() => handleStatus(review.id, review.status)}
+                        onClick={() => handleStatus(review.id, review.status || 'visible')}
                         className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
-                          review.status === 'visible'
+                          (review.status || 'visible') === 'visible'
                             ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border border-yellow-200'
                             : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-200'
                         }`}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={review.status === 'visible' ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" : "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"} />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={(review.status || 'visible') === 'visible' ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" : "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"} />
                         </svg>
-                        <span>Set {review.status === 'visible' ? 'Hidden' : 'Visible'}</span>
+                        <span>Set {(review.status || 'visible') === 'visible' ? 'Hidden' : 'Visible'}</span>
                       </button>
                       <button
                         onClick={() => handleDelete(review.id)}

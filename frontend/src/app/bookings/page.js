@@ -13,6 +13,23 @@ export default function BookingsPage() {
     skip: !user
   });
 
+  // ✅ Simple date validation function (consistent với approach đã fix)
+  const isValidDate = (dateString) => {
+    if (!dateString || 
+        dateString === null || 
+        dateString === undefined || 
+        dateString === '' ||
+        dateString === 'Invalid Date') {
+      return false;
+    }
+    try {
+      const date = new Date(dateString);
+      return !isNaN(date.getTime()) && date.getTime() > 0;
+    } catch {
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (user) {
       refetch();
@@ -83,14 +100,15 @@ export default function BookingsPage() {
     );
   }
 
-  const bookings = data?.bookings || [];
+  // ✅ Add safety check for data
+  const bookings = data?.bookings?.filter(booking => !booking.isDeleted) || [];
   
-  // Filter bookings
+  // ✅ Enhanced filtering with safe property access
   const filteredBookings = bookings.filter(booking => {
     if (filter === 'all') return true;
     if (filter === 'confirmed') return booking.status === 'confirmed';
     if (filter === 'pending') return booking.status === 'pending';
-    if (filter === 'completed') return booking.paymentStatus === 'completed';
+    if (filter === 'completed') return booking.paymentStatus === 'paid'; // ✅ Match với backend - 'paid' thay vì 'completed'
     return true;
   });
 
@@ -121,18 +139,47 @@ export default function BookingsPage() {
     );
   }
 
-  // Statistics
+  // ✅ Safe statistics calculation
   const confirmedBookings = bookings.filter(b => b.status === 'confirmed').length;
-  const completedPayments = bookings.filter(b => b.paymentStatus === 'completed').length;
+  const completedPayments = bookings.filter(b => b.paymentStatus === 'paid').length; // ✅ Match với backend
   const pendingBookings = bookings.filter(b => b.status === 'pending').length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Decorative Background Elements */}
+      {/* Decorative Background Elements - ✅ Fixed animation properties */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl"></div>
-        <div className="absolute top-20 right-20 w-60 h-60 bg-indigo-400/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-20 left-1/4 w-40 h-40 bg-purple-400/10 rounded-full blur-2xl"></div>
+        <div 
+          className="absolute -top-40 -left-40 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl"
+          style={{
+            animationName: 'float',
+            animationDuration: '6s',
+            animationTimingFunction: 'ease-in-out',
+            animationIterationCount: 'infinite',
+            animationDirection: 'alternate'
+          }}
+        ></div>
+        <div 
+          className="absolute top-20 right-20 w-60 h-60 bg-indigo-400/10 rounded-full blur-3xl"
+          style={{
+            animationName: 'float',
+            animationDuration: '8s',
+            animationTimingFunction: 'ease-in-out',
+            animationIterationCount: 'infinite',
+            animationDirection: 'alternate',
+            animationDelay: '2s'
+          }}
+        ></div>
+        <div 
+          className="absolute bottom-20 left-1/4 w-40 h-40 bg-purple-400/10 rounded-full blur-2xl"
+          style={{
+            animationName: 'float',
+            animationDuration: '7s',
+            animationTimingFunction: 'ease-in-out',
+            animationIterationCount: 'infinite',
+            animationDirection: 'alternate',
+            animationDelay: '4s'
+          }}
+        ></div>
       </div>
 
       <div className="relative z-10 py-8 px-4 lg:px-8">
@@ -219,7 +266,7 @@ export default function BookingsPage() {
                 { key: 'all', label: 'All Bookings', count: bookings.length },
                 { key: 'confirmed', label: 'Confirmed', count: confirmedBookings },
                 { key: 'pending', label: 'Pending', count: pendingBookings },
-                { key: 'completed', label: 'Completed', count: completedPayments }
+                { key: 'completed', label: 'Paid', count: completedPayments } // ✅ Label thay đổi để match
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -254,8 +301,13 @@ export default function BookingsPage() {
                   key={booking.id}
                   className="group bg-white rounded-3xl shadow-lg hover:shadow-2xl border border-slate-200 overflow-hidden transition-all duration-500 transform hover:-translate-y-2"
                   style={{
+                    // ✅ Fix: Sử dụng separate properties thay vì mix shorthand và individual
+                    animationName: 'fadeInUp',
+                    animationDuration: '0.6s',
+                    animationTimingFunction: 'ease-out',
                     animationDelay: `${index * 100}ms`,
-                    animation: 'fadeInUp 0.6s ease-out forwards'
+                    animationFillMode: 'forwards',
+                    opacity: 0 // Start with opacity 0 for animation
                   }}
                 >
                   {/* Card Header */}
@@ -264,9 +316,9 @@ export default function BookingsPage() {
                       {booking.tour?.title || 'Untitled Tour'}
                     </h2>
                     <p className="text-blue-100 text-sm">
-                      Booked on {booking.createdAt && !isNaN(Date.parse(booking.createdAt))
-                        ? new Date(booking.createdAt).toLocaleDateString()
-                        : 'N/A'}
+                      Booked on {isValidDate(booking.createdAt)
+                        ? new Date(booking.createdAt).toLocaleDateString('en-GB')
+                        : 'No date'}
                     </p>
                   </div>
 
@@ -288,9 +340,9 @@ export default function BookingsPage() {
                       </span>
                       
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                        booking.paymentStatus === 'completed'
+                        booking.paymentStatus === 'paid'
                           ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                          : booking.paymentStatus === 'pending'
+                          : booking.paymentStatus === 'unpaid'
                           ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
                           : 'bg-red-100 text-red-800 border border-red-200'
                       }`}>
@@ -300,6 +352,18 @@ export default function BookingsPage() {
                         {booking.paymentStatus || 'N/A'}
                       </span>
                     </div>
+
+                    {/* Passengers Count */}
+                    {booking.passengers?.length > 0 && (
+                      <div className="flex items-center space-x-2 mb-4 text-slate-600">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <span className="text-sm font-medium">
+                          {booking.passengers.length} passenger{booking.passengers.length > 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    )}
 
                     {/* Action Button */}
                     <Link
@@ -321,7 +385,7 @@ export default function BookingsPage() {
         </div>
       </div>
 
-      {/* Custom CSS for animations */}
+      {/* ✅ CSS animations with proper keyframes */}
       <style jsx>{`
         @keyframes fadeInUp {
           from {
@@ -331,6 +395,15 @@ export default function BookingsPage() {
           to {
             opacity: 1;
             transform: translateY(0);
+          }
+        }
+        
+        @keyframes float {
+          0% { 
+            transform: translateY(0px) rotate(0deg); 
+          }
+          100% { 
+            transform: translateY(-20px) rotate(3deg); 
           }
         }
         

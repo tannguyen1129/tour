@@ -16,4 +16,12 @@ const tourSchema = new mongoose.Schema({
   version: { type: Number, default: 1 }
 }, { timestamps: true });
 
+tourSchema.pre('save', function(next) {
+  if (this.isNew) {
+    this.createdAt = new Date();
+  }
+  this.updatedAt = new Date();
+  next();
+});
+
 export default mongoose.model('Tour', tourSchema);

@@ -4,6 +4,7 @@ const voucherSchema = new mongoose.Schema({
   code: { type: String, required: true, unique: true },
   type: { type: String, enum: ['percentage', 'fixed'], required: true },
   value: { type: Number, required: true },
+  maxDiscount: { type: Number },
   conditions: { type: String },
   validFrom: { type: Date },
   validTo: { type: Date },

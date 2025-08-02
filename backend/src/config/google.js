@@ -9,7 +9,7 @@ import jwt from 'jsonwebtoken';
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: '/api/auth/google/callback'
+  callbackURL: 'https://62770dd4b1f0.ngrok-free.app/api/auth/google/callback'
 }, async (accessToken, refreshToken, profile, done) => {
   try {
     const email = profile.emails[0].value;

@@ -12,13 +12,16 @@
     "@apollo/client": "^3.13.8",
     "@react-aria/dialog": "^3.5.27",
     "axios": "^1.10.0",
+    "chart.js": "^4.5.0",
     "class-variance-authority": "^0.7.1",
     "cors": "^2.8.5",
     "graphql": "^16.11.0",
     "next": "15.3.4",
     "react": "^19.0.0",
+    "react-chartjs-2": "^5.3.0",
     "react-dom": "^19.0.0",
-    "react-google-button": "^0.8.0"
+    "react-google-button": "^0.8.0",
+    "recharts": "^3.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

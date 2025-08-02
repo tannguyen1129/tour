@@ -1,10 +1,14 @@
 import { gql } from 'apollo-server-express';
 
 export default gql`
+  scalar DateTime 
+
   type Category {
     id: ID!
     name: String!
     description: String
+    createdAt: DateTime  
+    updatedAt: DateTime
   }
 
   type Tour {
@@ -18,12 +22,12 @@ export default gql`
     images: [String]
     videos: [String]
     location: String
-    category: Category  # ✅ Trả về Category object đã populate
+    category: Category
     status: String
     isDeleted: Boolean
     version: Int
-    createdAt: String
-    updatedAt: String
+    createdAt: DateTime  
+    updatedAt: DateTime 
   }
 
   input TourInput {
