@@ -1,9 +1,111 @@
 'use client';
 import { useState } from 'react';
-import { useQuery } from '@apollo/client';
-import { GET_TOURS } from '../../graphql/queries';
+import { useQuery, useMutation, useApolloClient } from '@apollo/client'; // ✅ Thêm useApolloClient
+import { GET_TOURS, IS_FAVORITE } from '../../graphql/queries';
+import { TOGGLE_FAVORITE } from '../../graphql/mutations';
 import TourCard from '../../components/TourCard';
 
+// ✅ Cập nhật FavoriteButton component
+function FavoriteButton({ tourId }) {
+  const client = useApolloClient(); // ✅ Thêm Apollo Client
+
+  const { data: isFavoriteData, loading: checkingFavorite } = useQuery(IS_FAVORITE, {
+    variables: { tourId },
+    errorPolicy: 'ignore',
+    skip: !tourId,
+    fetchPolicy: 'cache-and-network', // ✅ Quan trọng: luôn check cả cache và network
+    notifyOnNetworkStatusChange: true
+  });
+
+  const [toggleFavorite, { loading: toggling }] = useMutation(TOGGLE_FAVORITE, {
+    variables: { tourId },
+    onCompleted: async (data) => {
+      console.log(data.toggleFavorite.message);
+      
+      // ✅ Cập nhật cache và refetch favorites nếu cần
+      if (data.toggleFavorite.success) {
+        // Update IS_FAVORITE cache ngay lập tức
+        const newIsFavorite = !data.toggleFavorite.favorite.isDeleted;
+        client.writeQuery({
+          query: IS_FAVORITE,
+          variables: { tourId },
+          data: { isFavorite: newIsFavorite }
+        });
+      }
+    },
+    onError: (error) => {
+      console.error('Lỗi toggle favorite:', error);
+    },
+    // ✅ Update cache optimistically
+    optimisticResponse: {
+      toggleFavorite: {
+        __typename: 'FavoriteResponse',
+        success: true,
+        message: isFavoriteData?.isFavorite ? 'Removed from favorites' : 'Added to favorites',
+        favorite: {
+          __typename: 'Favorite',
+          id: 'temp-id',
+          isDeleted: isFavoriteData?.isFavorite || false,
+          tour: {
+            __typename: 'Tour',
+            id: tourId,
+            title: 'Tour Title'
+          }
+        }
+      }
+    },
+    update: (cache, { data }) => {
+      if (data?.toggleFavorite?.success) {
+        const newIsFavorite = !data.toggleFavorite.favorite.isDeleted;
+        cache.writeQuery({
+          query: IS_FAVORITE,
+          variables: { tourId },
+          data: { isFavorite: newIsFavorite }
+        });
+      }
+    }
+  });
+
+  const isFavorite = isFavoriteData?.isFavorite || false;
+  const isLoading = checkingFavorite || toggling;
+
+  const handleClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleFavorite();
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={isLoading}
+      className={`absolute top-4 left-4 z-20 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 transform hover:scale-110 shadow-lg ${
+        isFavorite 
+          ? 'bg-red-500 text-white hover:bg-red-600' 
+          : 'bg-white/90 backdrop-blur-sm text-gray-600 hover:bg-white hover:text-red-500'
+      }`}
+      title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+    >
+      {isLoading ? (
+        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+      ) : (
+        <svg 
+          className={`w-5 h-5 transition-all duration-200 ${isFavorite ? 'scale-110' : ''}`} 
+          fill={isFavorite ? 'currentColor' : 'none'} 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth={isFavorite ? 0 : 2} 
+            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
+          />
+        </svg>
+      )}
+    </button>
+  );
+}
 export default function ToursPage() {
   const { loading, error, data } = useQuery(GET_TOURS);
   const [search, setSearch] = useState('');
@@ -75,7 +177,7 @@ export default function ToursPage() {
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Hero Section - Full width */}
+      {/* Hero Section - giữ nguyên như cũ */}
       <div className="relative w-full overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 py-16 lg:py-24">
         <div className="absolute inset-0 bg-black/20"></div>
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/90 to-purple-700/90"></div>
@@ -102,11 +204,12 @@ export default function ToursPage() {
         </div>
       </div>
 
-      {/* Main Content - Full width container */}
+      {/* Main Content - giữ nguyên phần filter */}
       <div className="w-full px-4 lg:px-8 -mt-8 relative z-10 pb-16">
         <div className="max-w-7xl mx-auto">
-          {/* Advanced Filter Card */}
+          {/* Advanced Filter Card - giữ nguyên như cũ */}
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 lg:p-8 mb-8 lg:mb-12">
+            {/* ... giữ nguyên toàn bộ phần filter như code cũ ... */}
             <div className="flex items-center justify-center mb-6">
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
@@ -222,7 +325,7 @@ export default function ToursPage() {
             </div>
           </div>
 
-          {/* Tours Grid */}
+          {/* Tours Grid với nút yêu thích */}
           {filteredTours.length === 0 ? (
             <div className="text-center py-12 lg:py-16">
               <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-8 lg:p-12 max-w-md mx-auto">
@@ -248,23 +351,25 @@ export default function ToursPage() {
             </div>
           ) : (
             <>
-              {/* Tours Grid */}
+              {/* Tours Grid với nút yêu thích overlay */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-8 lg:mb-12">
                 {paginatedTours.map((tour, index) => (
                   <div
                     key={tour.id}
-                    className="transform transition-all duration-300 hover:scale-105"
+                    className="transform transition-all duration-300 hover:scale-105 relative"
                     style={{
                       animationDelay: `${index * 100}ms`,
                       animation: 'fadeInUp 0.6s ease-out forwards'
                     }}
                   >
                     <TourCard tour={tour} />
+                    {/* Nút yêu thích được overlay lên trên TourCard */}
+                    <FavoriteButton tourId={tour.id} />
                   </div>
                 ))}
               </div>
 
-              {/* Enhanced Pagination */}
+              {/* Enhanced Pagination - giữ nguyên như cũ */}
               {totalPages > 1 && (
                 <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-4 lg:p-6">
                   <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">

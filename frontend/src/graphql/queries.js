@@ -189,3 +189,56 @@ export const GET_PAYMENT_DETAIL = gql`
     }
   }
 `;
+
+// ✅ SỬA GET_FAVORITES - CHỈ LẤY FIELD CẦN THIẾT VÀ AN TOÀN
+export const GET_FAVORITES = gql`
+  query GetFavorites($limit: Int, $offset: Int) {
+    getFavorites(limit: $limit, offset: $offset) {
+      success
+      message
+      favorites {
+        id
+        createdAt
+        tour {
+          id
+          title
+          price
+          location
+          images
+          category {
+            id
+            name
+          }
+        }
+      }
+      total
+    }
+  }
+`;
+
+
+export const IS_FAVORITE = gql`
+  query IsFavorite($tourId: ID!) {
+    isFavorite(tourId: $tourId)
+  }
+`;
+
+export const GET_TOUR_FAVORITES = gql`
+  query GetTourFavorites($tourId: ID!) {
+    getTourFavorites(tourId: $tourId) {
+      success
+      message
+      favorites {
+        id
+        user {
+          id
+          name
+          email
+          avatar
+        }
+        createdAt
+      }
+      total
+    }
+  }
+`;

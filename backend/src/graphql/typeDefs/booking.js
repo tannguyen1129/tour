@@ -1,6 +1,7 @@
 import { gql } from 'apollo-server-express';
 
 export default gql`
+  scalar DateTime
   type Booking {
     id: ID!
     user: User

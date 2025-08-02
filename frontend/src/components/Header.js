@@ -64,6 +64,22 @@ export default function Header() {
                   <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-yellow-400 group-hover:w-full transition-all duration-300"></div>
                 </Link>
 
+                {/* Nút Tour yêu thích - chỉ hiển thị khi user đã login */}
+                {user && (
+                  <Link
+                    href="/favorites"
+                    className="group relative px-4 py-2 text-white/90 hover:text-white font-medium transition-all duration-300 rounded-xl hover:bg-white/10"
+                  >
+                    <span className="flex items-center space-x-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                      <span>Favorites</span>
+                    </span>
+                    <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-yellow-400 group-hover:w-full transition-all duration-300"></div>
+                  </Link>
+                )}
+
                 {user?.role === 'customer' && (
                   <>
                     <Link
@@ -109,7 +125,7 @@ export default function Header() {
               </nav>
             </div>
 
-            {/* User Actions */}
+            {/* User Actions - giữ nguyên như cũ */}
             <div className="flex items-center space-x-4">
               {user ? (
                 <div className="flex items-center space-x-4">
@@ -213,6 +229,20 @@ export default function Header() {
               <span className="font-medium">Tours</span>
             </Link>
 
+            {/* Nút Tour yêu thích trong mobile menu */}
+            {user && (
+              <Link
+                href="/favorites"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex items-center space-x-3 px-4 py-3 text-white/90 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-300"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                <span className="font-medium">Favorites</span>
+              </Link>
+            )}
+
             {user?.role === 'customer' && (
               <>
                 <Link
@@ -252,7 +282,7 @@ export default function Header() {
               </Link>
             )}
 
-            {/* Mobile User Info */}
+            {/* Mobile User Info - giữ nguyên */}
             {user && (
               <div className="border-t border-white/20 pt-4 mt-4">
                 <div className="flex items-center space-x-3 px-4 py-2 bg-white/10 rounded-xl">

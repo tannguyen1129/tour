@@ -311,3 +311,65 @@ export const CONFIRM_PAYMENT = gql`
     }
   }
 `;
+
+export const ADD_TO_FAVORITES = gql`
+  mutation AddToFavorites($tourId: ID!) {
+    addToFavorites(tourId: $tourId) {
+      success
+      message
+      favorite {
+        id
+        tour {
+          id
+          title
+        }
+        user {
+          id
+          name
+        }
+      }
+    }
+  }
+`;
+
+export const REMOVE_FROM_FAVORITES = gql`
+  mutation RemoveFromFavorites($tourId: ID!) {
+    removeFromFavorites(tourId: $tourId) {
+      success
+      message
+      favorite {
+        id
+      }
+    }
+  }
+`;
+
+export const TOGGLE_FAVORITE = gql`
+  mutation ToggleFavorite($tourId: ID!) {
+    toggleFavorite(tourId: $tourId) {
+      success
+      message
+      favorite {
+        id
+        isDeleted
+        tour {
+          id
+          title
+        }
+      }
+    }
+  }
+`;
+
+export const REORDER_FAVORITES = gql`
+  mutation ReorderFavorites($favoriteIds: [ID!]!) {
+    reorderFavorites(favoriteIds: $favoriteIds) {
+      success
+      message
+      favorites {
+        id
+        order
+      }
+    }
+  }
+`;

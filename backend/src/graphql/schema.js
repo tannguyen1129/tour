@@ -28,6 +28,8 @@ import reviewTypeDefs from './typeDefs/review.js';
 import logTypeDefs from './typeDefs/log.js';
 import profileTypeDefs from './typeDefs/profile.js';
 import statisticsTypeDefs from './typeDefs/statistics.js';
+import favoritesTypeDefs from './typeDefs/favorites.js';
+
 
 // ✅ Import resolvers
 import authResolvers from './resolvers/auth.js';
@@ -40,6 +42,7 @@ import reviewResolvers from './resolvers/review.js';
 import logResolvers from './resolvers/log.js';
 import profileResolvers from './resolvers/profile.js';
 import statisticsResolvers from './resolvers/statistics.js';
+import favoritesResolvers  from './resolvers/favorites.js';
 
 // ✅ Merge schemas in proper order
 export const typeDefs = mergeTypeDefs([
@@ -53,7 +56,8 @@ export const typeDefs = mergeTypeDefs([
   reviewTypeDefs,
   logTypeDefs,
   profileTypeDefs,
-  statisticsTypeDefs
+  statisticsTypeDefs,
+  favoritesTypeDefs
 ]);
 
 // ✅ Merge resolvers
@@ -67,5 +71,6 @@ export const resolvers = mergeResolvers([
   reviewResolvers,
   logResolvers,
   profileResolvers,
-  statisticsResolvers
+  statisticsResolvers,
+  favoritesResolvers
 ]);

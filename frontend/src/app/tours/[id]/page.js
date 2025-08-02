@@ -1,10 +1,110 @@
 'use client';
 import { useState } from 'react';
-import { useQuery } from '@apollo/client';
-import { GET_TOUR_DETAIL, GET_REVIEWS } from '../../../graphql/queries';
+import { useQuery, useMutation, useApolloClient } from '@apollo/client'; // ✅ Thêm useApolloClient
+import { GET_TOUR_DETAIL, GET_REVIEWS, IS_FAVORITE } from '../../../graphql/queries'; // ✅ Thêm IS_FAVORITE
+import { TOGGLE_FAVORITE } from '../../../graphql/mutations'; // ✅ Thêm TOGGLE_FAVORITE
 import BookingForm from '../../../components/BookingForm';
 import { useAuth } from '../../../context/AuthContext';
 import { use } from 'react';
+
+// ✅ Component FavoriteButton (giống như trong tours page)
+function FavoriteButton({ tourId }) {
+  const client = useApolloClient();
+
+  const { data: isFavoriteData, loading: checkingFavorite } = useQuery(IS_FAVORITE, {
+    variables: { tourId },
+    errorPolicy: 'ignore',
+    skip: !tourId,
+    fetchPolicy: 'cache-and-network',
+    notifyOnNetworkStatusChange: true
+  });
+
+  const [toggleFavorite, { loading: toggling }] = useMutation(TOGGLE_FAVORITE, {
+    variables: { tourId },
+    onCompleted: async (data) => {
+      console.log(data.toggleFavorite.message);
+      
+      if (data.toggleFavorite.success) {
+        const newIsFavorite = !data.toggleFavorite.favorite.isDeleted;
+        client.writeQuery({
+          query: IS_FAVORITE,
+          variables: { tourId },
+          data: { isFavorite: newIsFavorite }
+        });
+      }
+    },
+    onError: (error) => {
+      console.error('Lỗi toggle favorite:', error);
+    },
+    optimisticResponse: {
+      toggleFavorite: {
+        __typename: 'FavoriteResponse',
+        success: true,
+        message: isFavoriteData?.isFavorite ? 'Removed from favorites' : 'Added to favorites',
+        favorite: {
+          __typename: 'Favorite',
+          id: 'temp-id',
+          isDeleted: isFavoriteData?.isFavorite || false,
+          tour: {
+            __typename: 'Tour',
+            id: tourId,
+            title: 'Tour Title'
+          }
+        }
+      }
+    },
+    update: (cache, { data }) => {
+      if (data?.toggleFavorite?.success) {
+        const newIsFavorite = !data.toggleFavorite.favorite.isDeleted;
+        cache.writeQuery({
+          query: IS_FAVORITE,
+          variables: { tourId },
+          data: { isFavorite: newIsFavorite }
+        });
+      }
+    }
+  });
+
+  const isFavorite = isFavoriteData?.isFavorite || false;
+  const isLoading = checkingFavorite || toggling;
+
+  const handleClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleFavorite();
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={isLoading}
+      className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 transform hover:scale-110 shadow-lg border-2 ${
+        isFavorite 
+          ? 'bg-red-500 text-white hover:bg-red-600 border-red-500' 
+          : 'bg-white/90 backdrop-blur-sm text-gray-600 hover:bg-white hover:text-red-500 border-white/50'
+      }`}
+      title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+    >
+      {isLoading ? (
+        <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+      ) : (
+        <svg 
+          className={`w-6 h-6 transition-all duration-200 ${isFavorite ? 'scale-110' : ''}`} 
+          fill={isFavorite ? 'currentColor' : 'none'} 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth={isFavorite ? 0 : 2} 
+            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
+          />
+        </svg>
+      )}
+    </button>
+  );
+}
 
 export default function TourDetailPage({ params }) {
   const { id } = use(params); 
@@ -110,79 +210,125 @@ export default function TourDetailPage({ params }) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-black/40"></div>
         
+        {/* ✅ Favorite Button - Positioned in top right of hero */}
+        <div className="absolute top-6 right-6 z-30">
+          {user && <FavoriteButton tourId={tour.id} />}
+        </div>
+        
         {/* Hero Content */}
-        {/* Hero Content */}
-<div className="absolute inset-0 flex items-end z-20">
-  <div className="w-full px-4 lg:px-8 pb-8 lg:pb-12">
-    <div className="max-w-6xl mx-auto">
-      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between space-y-6 lg:space-y-0">
-        <div className="flex-1 space-y-4 relative z-30">
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight drop-shadow-lg">
-            {tour.title}
-          </h1>
-          <div className="flex flex-wrap items-center gap-6 text-white/90">
-            <div className="flex items-center space-x-3 bg-black/20 backdrop-blur-sm rounded-lg px-3 py-2">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="font-medium text-lg">{tour.location}</span>
-            </div>
-            <div className="flex items-center space-x-3 bg-black/20 backdrop-blur-sm rounded-lg px-3 py-2">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-              <span className="font-medium text-lg">{tour.category?.name}</span>
-            </div>
-            {reviews.length > 0 && (
-              <div className="flex items-center space-x-3 bg-black/20 backdrop-blur-sm rounded-lg px-3 py-2">
-                <div className="flex items-center space-x-1">
-                  {[...Array(5)].map((_, i) => (
-                    <svg
-                      key={i}
-                      className={`w-5 h-5 ${i < Math.floor(averageRating) ? 'text-yellow-400' : 'text-white/30'}`}
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                    </svg>
-                  ))}
+        <div className="absolute inset-0 flex items-end z-20">
+          <div className="w-full px-4 lg:px-8 pb-8 lg:pb-12">
+            <div className="max-w-6xl mx-auto">
+              <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between space-y-6 lg:space-y-0">
+                <div className="flex-1 space-y-4 relative z-30">
+                  <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight drop-shadow-lg">
+                    {tour.title}
+                  </h1>
+                  <div className="flex flex-wrap items-center gap-6 text-white/90">
+                    <div className="flex items-center space-x-3 bg-black/20 backdrop-blur-sm rounded-lg px-3 py-2">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span className="font-medium text-lg">{tour.location}</span>
+                    </div>
+                    <div className="flex items-center space-x-3 bg-black/20 backdrop-blur-sm rounded-lg px-3 py-2">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                      <span className="font-medium text-lg">{tour.category?.name}</span>
+                    </div>
+                    {reviews.length > 0 && (
+                      <div className="flex items-center space-x-3 bg-black/20 backdrop-blur-sm rounded-lg px-3 py-2">
+                        <div className="flex items-center space-x-1">
+                          {[...Array(5)].map((_, i) => (
+                            <svg
+                              key={i}
+                              className={`w-5 h-5 ${i < Math.floor(averageRating) ? 'text-yellow-400' : 'text-white/30'}`}
+                              fill="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                            </svg>
+                          ))}
+                        </div>
+                        <span className="font-medium text-lg">{averageRating} ({reviews.length} reviews)</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <span className="font-medium text-lg">{averageRating} ({reviews.length} reviews)</span>
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 min-w-[200px] relative z-30">
+                  <div className="text-center">
+                    <p className="text-white/80 text-sm font-medium">Starting from</p>
+                    <p className="text-3xl font-bold text-white">${tour.price}</p>
+                    <p className="text-white/80 text-sm">per person</p>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-        </div>
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 min-w-[200px] relative z-30">
-          <div className="text-center">
-            <p className="text-white/80 text-sm font-medium">Starting from</p>
-            <p className="text-3xl font-bold text-white">${tour.price}</p>
-            <p className="text-white/80 text-sm">per person</p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
-</div>
 
-      </div>
+      {/* ✅ Alternative: Favorite button trong section riêng nếu user chưa login */}
+      {!user && (
+        <div className="w-full px-4 lg:px-8 -mt-8 relative z-10">
+          <div className="max-w-6xl mx-auto">
+            <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 mb-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Love this tour?</h3>
+                  <p className="text-slate-600">Sign in to add it to your favorites!</p>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center">
+                    <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                  </div>
+                  <button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 transition-all duration-200">
+                    Sign In
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
-      <div className="w-full px-4 lg:px-8 -mt-16 relative z-10 pb-16">
+      <div className={`w-full px-4 lg:px-8 ${user ? '-mt-16' : ''} relative z-10 pb-16`}>
         <div className="max-w-6xl mx-auto">
           {/* Tour Details Card */}
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden mb-8">
             <div className="p-6 lg:p-8">
+              {/* ✅ Action bar with favorite button for logged in users */}
+              {user && (
+                <div className="flex items-center justify-between mb-6 pb-6 border-b border-slate-200">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-800">Tour Details</h2>
+                    <p className="text-slate-600">Everything you need to know about this adventure</p>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <FavoriteButton tourId={tour.id} />
+                    <div className="text-right">
+                      <p className="text-sm text-slate-600">Add to favorites</p>
+                      <p className="text-xs text-slate-500">Save for later</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Main Details */}
                 <div className="lg:col-span-2 space-y-8">
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center space-x-2">
+                    <h3 className="text-2xl font-bold text-slate-800 mb-6 flex items-center space-x-2">
                       <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <span>About This Tour</span>
-                    </h2>
+                    </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="bg-slate-50 rounded-xl p-6">
                         <div className="flex items-center space-x-4">
@@ -265,7 +411,7 @@ export default function TourDetailPage({ params }) {
             </div>
           </div>
 
-          {/* Reviews Section - Moved to bottom */}
+          {/* Reviews Section - giữ nguyên */}
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
             <div className="p-6 lg:p-8">
               <div className="flex items-center justify-between mb-8">
@@ -297,6 +443,7 @@ export default function TourDetailPage({ params }) {
                 )}
               </div>
 
+              {/* ... rest của reviews section giữ nguyên ... */}
               {reviewLoading && (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>

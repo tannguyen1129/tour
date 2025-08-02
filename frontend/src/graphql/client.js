@@ -8,6 +8,10 @@ const httpLink = createHttpLink({
 const authLink = setContext((_, { headers }) => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
+  if (!token || token === 'undefined' || token === 'null') {
+  console.warn('[ApolloClient] Token is invalid → skipping');
+}
+
   // Chỉ thêm authorization header khi có token hợp lệ
   const authHeader = token ? { authorization: `Bearer ${token}` } : {};
 
